@@ -1,0 +1,88 @@
+{
+	"name": "PL_ES_ES_reports_views",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute Aggregations pipeline",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_ES_ES_aggregations",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"index_user_events": {
+							"value": "@pipeline().parameters.index_user_events",
+							"type": "Expression"
+						},
+						"index_target": {
+							"value": "@pipeline().parameters.index_target",
+							"type": "Expression"
+						},
+						"id_key": {
+							"value": "@variables('id_key')",
+							"type": "Expression"
+						},
+						"resource_type": {
+							"value": "@variables('resource_type')",
+							"type": "Expression"
+						},
+						"event_type": {
+							"value": "@variables('event_type')",
+							"type": "Expression"
+						},
+						"count_name": {
+							"value": "@variables('count_field_name')",
+							"type": "Expression"
+						},
+						"output_file_name": {
+							"value": "@variables('output_file_name')",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index_user_events": {
+				"type": "string",
+				"defaultValue": "idx_user_events2"
+			},
+			"index_target": {
+				"type": "string",
+				"defaultValue": "idx_reports2"
+			}
+		},
+		"variables": {
+			"id_key": {
+				"type": "String",
+				"defaultValue": "report_id"
+			},
+			"resource_type": {
+				"type": "String",
+				"defaultValue": "report"
+			},
+			"event_type": {
+				"type": "String",
+				"defaultValue": "click"
+			},
+			"count_field_name": {
+				"type": "String",
+				"defaultValue": "views"
+			},
+			"output_file_name": {
+				"type": "String",
+				"defaultValue": "aggregations_reports_views"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/ES_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-08-31T13:06:03Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

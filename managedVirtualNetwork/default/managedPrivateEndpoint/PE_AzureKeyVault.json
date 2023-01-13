@@ -1,0 +1,10 @@
+{
+	"name": "PE_AzureKeyVault",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/6e48fce0-a84a-4f65-b020-7c16e5a28768/resourceGroups/rg-pf-dmp-dev/providers/Microsoft.KeyVault/vaults/kv-pfg-dmp-d-001",
+		"groupId": "vault",
+		"fqdns": [
+			"kv-pfg-dmp-d-001.vault.azure.net"
+		]
+	}
+}

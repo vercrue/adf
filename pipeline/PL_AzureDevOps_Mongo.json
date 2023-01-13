@@ -1,0 +1,388 @@
+{
+	"name": "PL_AzureDevOps_Mongo",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy support requests to JSON",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "CosmosDbMongoDbApiSource",
+						"batchSize": 100,
+						"filter": "{state: {$nin: [\"Closed\", \"Deleted\"]}}"
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"validateDataConsistency": true,
+					"logSettings": {
+						"enableCopyActivityLog": true,
+						"copyActivityLogSettings": {
+							"logLevel": "Warning",
+							"enableReliableLogging": false
+						},
+						"logLocationSettings": {
+							"linkedServiceName": {
+								"referenceName": "LS_ADLS_STRUCTURED",
+								"type": "LinkedServiceReference"
+							},
+							"path": "pipelines/logs"
+						}
+					},
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['_id']['$oid']"
+								},
+								"sink": {
+									"path": "_id"
+								}
+							},
+							{
+								"source": {
+									"path": "$['support_type']"
+								},
+								"sink": {
+									"path": "support_type"
+								}
+							},
+							{
+								"source": {
+									"path": "$['detail']"
+								},
+								"sink": {
+									"path": "detail"
+								}
+							},
+							{
+								"source": {
+									"path": "$['beneficiary']"
+								},
+								"sink": {
+									"path": "beneficiary"
+								}
+							},
+							{
+								"source": {
+									"path": "$['work_item_id']"
+								},
+								"sink": {
+									"path": "work_item_id"
+								}
+							},
+							{
+								"source": {
+									"path": "$['requester']"
+								},
+								"sink": {
+									"path": "requester"
+								}
+							},
+							{
+								"source": {
+									"path": "$['state']"
+								},
+								"sink": {
+									"path": "state"
+								}
+							},
+							{
+								"source": {
+									"path": "$['creation_date']['$date']"
+								},
+								"sink": {
+									"path": "creation_date"
+								}
+							},
+							{
+								"source": {
+									"path": "$['update_date']['$date']"
+								},
+								"sink": {
+									"path": "update_date"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_Cosmos_back_support_requests",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "support_requests.json"
+						}
+					}
+				]
+			},
+			{
+				"name": "Read support requests",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Copy support requests to JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "support_requests.json"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "For each support request",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Read support requests",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Read support requests').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 50,
+					"activities": [
+						{
+							"name": "Get state",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": {
+									"value": "https://dev.azure.com/@{variables('organization')}/@{variables('project')}/_apis/wit/workitems/@{item().work_item_id}?api-version=7.0&fields=System.state,System.Id",
+									"type": "Expression"
+								},
+								"method": "GET",
+								"authentication": {
+									"type": "Basic",
+									"username": "berrado@pierre-fabre.com",
+									"password": {
+										"type": "AzureKeyVaultSecret",
+										"store": {
+											"referenceName": "LS_KeyVault",
+											"type": "LinkedServiceReference"
+										},
+										"secretName": "AzureDevOpsPassword"
+									}
+								}
+							}
+						},
+						{
+							"name": "If state is different",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Get state",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@not(equals(item().state, activity('Get state').output.fields['System.State']))",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Add state",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "data",
+											"value": {
+												"value": "@json(concat('{\n    \"work_item_id\": \"', item().work_item_id , '\", \n    \"state\": \"', activity('Get state').output.fields['System.State'], '\"\n}'))",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "If error is does not exist",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Get state",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@contains(activity('Get state').output.message, 'does not exist')",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Add deleted state",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "data",
+											"value": {
+												"value": "@json(concat('{\n    \"work_item_id\": \"', item().work_item_id , '\", \n    \"state\": \"Deleted\"\n}'))",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If states have changed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "For each support request",
+						"dependencyConditions": [
+							"Succeeded",
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(length(variables('data')), 0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Update CosmosDB_copy1",
+							"type": "AzureFunctionActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"functionName": "update_cosmosdb",
+								"method": "POST",
+								"headers": {
+									"Content-Type": "application/json"
+								},
+								"body": {
+									"value": "{\n    \"collection\": \"@{variables('collection')}\",\n    \"data\": @{variables('data')},\n    \"id_key\": \"@{variables('id_key')}\",\n    \"key_to_update\": \"@{variables('key_to_update')}\"\n}",
+									"type": "Expression"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_AF_pipelines",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"organization": {
+				"type": "String",
+				"defaultValue": "pierrefabre"
+			},
+			"project": {
+				"type": "String",
+				"defaultValue": "Data integration"
+			},
+			"data": {
+				"type": "Array"
+			},
+			"collection": {
+				"type": "String",
+				"defaultValue": "support_request"
+			},
+			"id_key": {
+				"type": "String",
+				"defaultValue": "work_item_id"
+			},
+			"key_to_update": {
+				"type": "String",
+				"defaultValue": "state"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-12-20T13:18:03Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

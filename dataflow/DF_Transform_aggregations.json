@@ -1,0 +1,75 @@
+{
+	"name": "DF_Transform_aggregations",
+	"properties": {
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_CSV_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "ReadAggregations"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "Export"
+				}
+			],
+			"transformations": [
+				{
+					"name": "ParseAggregations",
+					"flowlet": {
+						"referenceName": "FL_Parse_aggregations",
+						"type": "DataFlowReference",
+						"parameters": {
+							"id_column_name": "$id_key",
+							"count_column_name": "$count_name"
+						}
+					}
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     id_key as string ('dataset_id'),",
+				"     count_name as string ('explores'),",
+				"     output_file_name as string ('aggregations_datasets_explores.json')",
+				"}",
+				"source(output(",
+				"          json as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> ReadAggregations",
+				"ReadAggregations compose(mapParameter(",
+				"          id_column_name = $id_key,",
+				"          count_column_name = $count_name",
+				"     ),",
+				"     mapColumn(",
+				"          Column_1 = json",
+				"     ),",
+				"     composition: 'FL_Parse_aggregations') ~> ParseAggregations@(Export)",
+				"ParseAggregations@Export sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          count as integer",
+				"     ),",
+				"     partitionFileNames:[($output_file_name)],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> Export"
+			]
+		}
+	}
+}

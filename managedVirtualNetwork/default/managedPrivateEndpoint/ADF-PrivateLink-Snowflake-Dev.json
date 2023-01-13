@@ -1,0 +1,11 @@
+{
+	"name": "ADF-PrivateLink-Snowflake-Dev",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/c4163da0-f07a-42ab-a254-9ca2bf882e98/resourceGroups/azwesteurope-privatelink/providers/Microsoft.Network/privateLinkServices/sf-pvlinksvc-azwesteurope",
+		"groupId": "",
+		"fqdns": [
+			"kt95341.west-europe.privatelink.snowflakecomputing.com",
+			"ocsp.kt95341.west-europe.privatelink.snowflakecomputing.com"
+		]
+	}
+}

@@ -1,0 +1,6 @@
+{
+	"name": "IR-dmp-aks",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}

@@ -1,0 +1,39 @@
+{
+	"name": "DS_JSON_datasets_counts",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_STRUCTURED",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"file_name": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@{dataset().file_name}.json",
+					"type": "Expression"
+				},
+				"folderPath": "datasets_counts",
+				"fileSystem": "pipelines"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"count": {
+					"type": "integer"
+				}
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

@@ -1,0 +1,302 @@
+{
+	"name": "PL_Denodo_ES_datasets_nb_lines",
+	"properties": {
+		"activities": [
+			{
+				"name": "Count datasets",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index_datasets}/_count",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "IR-dmp-aks",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "GET",
+					"disableCertValidation": true,
+					"authentication": {
+						"type": "Basic",
+						"username": "sa_datafactory",
+						"password": {
+							"type": "AzureKeyVaultSecret",
+							"store": {
+								"referenceName": "LS_KeyVault",
+								"type": "LinkedServiceReference"
+							},
+							"secretName": "ElasticsearchSADatafactoryPassword"
+						}
+					}
+				}
+			},
+			{
+				"name": "Get datasets",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Count datasets",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index_datasets}/_search",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "IR-dmp-aks",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"body": {
+						"value": "{\n    \"_source\": false,\n    \"size\": @{activity('Count datasets').output.count}\n}",
+						"type": "Expression"
+					},
+					"disableCertValidation": true,
+					"authentication": {
+						"type": "Basic",
+						"username": "sa_datafactory",
+						"password": {
+							"type": "AzureKeyVaultSecret",
+							"store": {
+								"referenceName": "LS_KeyVault",
+								"type": "LinkedServiceReference"
+							},
+							"secretName": "ElasticsearchSADatafactoryPassword"
+						}
+					}
+				}
+			},
+			{
+				"name": "For each dataset",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get datasets",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get datasets').output.hits.hits",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Copy count to CSV",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"query": {
+										"value": "SELECT COUNT(*) AS number_lines, '@{item()._id}' AS dataset_id FROM @{replace(item()._id,'@','.')}",
+										"type": "Expression"
+									},
+									"queryTimeout": "00:05:00"
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "number_lines",
+												"type": "Int64"
+											},
+											"sink": {
+												"path": "$['number_lines']"
+											}
+										},
+										{
+											"source": {
+												"name": "dataset_id",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['dataset_id']"
+											}
+										}
+									]
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ODBC_Denodo",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_JSON_datasets_counts",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": {
+											"value": "@replace(item()._id, '@', '_')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Read count",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Copy count to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DS_JSON_datasets_counts",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": {
+											"value": "@replace(item()._id, '@', '_')",
+											"type": "Expression"
+										}
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Append count to data",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Read count",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "data",
+								"value": {
+									"value": "@activity('Read count').output.value[0]",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Load to ES",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "For each dataset",
+						"dependencyConditions": [
+							"Succeeded",
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_Load_to_Elasticsearch",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"data": {
+							"value": "@variables('data')",
+							"type": "Expression"
+						},
+						"index": {
+							"value": "@pipeline().parameters.index_datasets",
+							"type": "Expression"
+						},
+						"id_key": "dataset_id",
+						"op_type": "update"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index_datasets": {
+				"type": "string",
+				"defaultValue": "idx_datasets2"
+			}
+		},
+		"variables": {
+			"data": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-10-03T08:52:58Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

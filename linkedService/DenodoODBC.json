@@ -1,0 +1,28 @@
+{
+	"name": "DenodoODBC",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "Odbc",
+		"typeProperties": {
+			"connectionString": {
+				"type": "SecureString",
+				"value": "**********"
+			},
+			"authenticationType": "Basic",
+			"userName": "read_portal",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "LS_KeyVault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "DenodoReadPortalPassword"
+			}
+		},
+		"connectVia": {
+			"referenceName": "IR-dmp-aks",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

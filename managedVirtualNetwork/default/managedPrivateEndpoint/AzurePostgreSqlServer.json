@@ -1,0 +1,10 @@
+{
+	"name": "AzurePostgreSqlServer",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/1fd75d0f-1229-4b8f-a9ee-235b1fd8ac60/resourceGroups/rg-pf-das-stg/providers/Microsoft.DBforPostgreSQL/servers/pgsqlsaadpremium",
+		"groupId": "postgresqlServer",
+		"fqdns": [
+			"pgsqlsaadpremium.postgres.database.azure.com"
+		]
+	}
+}

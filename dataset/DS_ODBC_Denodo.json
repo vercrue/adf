@@ -1,0 +1,16 @@
+{
+	"name": "DS_ODBC_Denodo",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "DenodoODBC",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo"
+		},
+		"annotations": [],
+		"type": "OdbcTable",
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

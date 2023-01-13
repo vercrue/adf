@@ -1,0 +1,10 @@
+{
+	"name": "PE_LS_Blob_structured",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/6e48fce0-a84a-4f65-b020-7c16e5a28768/resourceGroups/rg-pf-dmp-dev/providers/Microsoft.Storage/storageAccounts/stszpfgdmpdstructervelag",
+		"groupId": "dfs",
+		"fqdns": [
+			"stszpfgdmpdstructervelag.dfs.core.windows.net"
+		]
+	}
+}

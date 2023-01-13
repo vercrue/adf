@@ -1,0 +1,24 @@
+{
+	"name": "LS_AF_pipelines",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureFunction",
+		"typeProperties": {
+			"functionAppUrl": "https://fapplpfgdmpdppipelines001.azurewebsites.net",
+			"functionKey": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "LS_KeyVault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "AzureFunctionsPipelinesAppKey"
+			},
+			"authentication": "Anonymous"
+		},
+		"connectVia": {
+			"referenceName": "MVNIntegrationRuntime",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

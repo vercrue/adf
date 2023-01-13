@@ -1,0 +1,445 @@
+{
+	"name": "PL_Denodo_ES_dictionary_full",
+	"properties": {
+		"activities": [
+			{
+				"name": "Count dictionary",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"query": "SELECT COUNT(*) FROM si_transverse.i_referentiel_mycelium_dictionnaire_metier",
+						"queryTimeout": "00:03:00"
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "count",
+									"type": "Int64"
+								},
+								"sink": {
+									"path": "$['count']"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_ODBC_Denodo",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "dictionary_count.json"
+						}
+					}
+				]
+			},
+			{
+				"name": "If count greater 0",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Read count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('Read count').output.firstRow.count, 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Dictionary not found",
+								"errorCode": "404"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Read clean",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Copy dictionary to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "dictionary.csv"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Copy dictionary to CSV",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"query": "SELECT * FROM si_transverse.i_referentiel_mycelium_dictionnaire_metier",
+									"queryTimeout": "00:10:00"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"validateDataConsistency": true,
+								"logSettings": {
+									"enableCopyActivityLog": true,
+									"copyActivityLogSettings": {
+										"logLevel": "Warning",
+										"enableReliableLogging": false
+									},
+									"logLocationSettings": {
+										"linkedServiceName": {
+											"referenceName": "LS_ADLS_STRUCTURED",
+											"type": "LinkedServiceReference"
+										},
+										"path": "pipelines/logs"
+									}
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "Nom",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Nom",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Type",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Type",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Définition",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Définition",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Personne (A pour Data Steward)",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Personne (A pour Data Steward)",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Domaine de Gouvernance (est gourverné par)",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Domaine de Gouvernance (est gourverné par)",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Personne (A pour Data Owner)",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Personne (A pour Data Owner)",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Etat",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Etat",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Definition in english",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Definition in english",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Name in English",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Name in English",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Synonymes et acronymes",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Synonymes et acronymes",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Source de définition",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Source de définition",
+												"type": "String",
+												"physicalType": "String"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": false,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ODBC_Denodo",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "dictionary.csv"
+									}
+								}
+							]
+						},
+						{
+							"name": "Execute Load to ES",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Delete index data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Load_to_Elasticsearch",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"data": {
+										"value": "@activity('Read clean').output.value",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Delete index data",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read clean",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Delete_ES_index",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"count": {
+										"value": "@activity('Read clean').output.count",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Read count",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Count dictionary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "dictionary_count.json"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index": {
+				"type": "string",
+				"defaultValue": "idx_dictionary2"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-10-07T09:47:00Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

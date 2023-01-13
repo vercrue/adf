@@ -1,0 +1,149 @@
+{
+	"name": "PL_Load_to_Elasticsearch",
+	"properties": {
+		"activities": [
+			{
+				"name": "Loop data",
+				"type": "Until",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(int(variables('from')), length(pipeline().parameters.data))",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Load to Elasticsearch",
+							"type": "AzureFunctionActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"functionName": "load_to_elastic",
+								"method": "POST",
+								"headers": {
+									"Content-Type": "application/json"
+								},
+								"body": {
+									"value": "{\"data\": @{take(skip(pipeline().parameters.data, int(variables('from'))), pipeline().parameters.size)}, \n\"index\": \"@{pipeline().parameters.index}\"\n@{if(empty(pipeline().parameters.id_key), '', concat(', \"id_key\": \"', pipeline().parameters.id_key, '\"'))}\n@{if(empty(pipeline().parameters.op_type), '', concat(', \"op_type\": \"', pipeline().parameters.op_type, '\"'))}\n@{if(empty(pipeline().parameters.terms_field), '', concat(', \"terms_field\": \"', pipeline().parameters.terms_field, '\"'))}\n@{if(empty(pipeline().parameters.index_dictionary), '', concat(', \"dictionary_index\": \"', pipeline().parameters.index_dictionary, '\"'))}\n}",
+									"type": "Expression"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_AF_pipelines",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Add size",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set tmp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "from",
+								"value": {
+									"value": "@string(add(int(variables('from_tmp')), pipeline().parameters.size))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set tmp",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Load to Elasticsearch",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "from_tmp",
+								"value": {
+									"value": "@variables('from')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set size to break loop",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Load to Elasticsearch",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "from",
+								"value": {
+									"value": "@string(add(length(pipeline().parameters.data), 1))",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"timeout": "0.00:45:00"
+				}
+			}
+		],
+		"parameters": {
+			"data": {
+				"type": "array"
+			},
+			"size": {
+				"type": "int",
+				"defaultValue": 500
+			},
+			"index": {
+				"type": "string"
+			},
+			"id_key": {
+				"type": "string"
+			},
+			"terms_field": {
+				"type": "string"
+			},
+			"index_dictionary": {
+				"type": "string"
+			},
+			"op_type": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"from": {
+				"type": "String",
+				"defaultValue": "0"
+			},
+			"from_tmp": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-04T10:47:39Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

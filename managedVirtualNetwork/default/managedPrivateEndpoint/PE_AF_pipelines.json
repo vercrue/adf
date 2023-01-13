@@ -1,0 +1,11 @@
+{
+	"name": "PE_AF_pipelines",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/6e48fce0-a84a-4f65-b020-7c16e5a28768/resourceGroups/rg-pf-dmp-dev/providers/Microsoft.Web/sites/fapplpfgdmpdppipelines001",
+		"groupId": "sites",
+		"fqdns": [
+			"fapplpfgdmpdppipelines001.azurewebsites.net",
+			"fapplpfgdmpdppipelines001.scm.azurewebsites.net"
+		]
+	}
+}

@@ -1,0 +1,77 @@
+{
+	"name": "FL_Parse_aggregations",
+	"properties": {
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"type": "Flowlet",
+		"typeProperties": {
+			"sources": [],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "ParseFlatten"
+				},
+				{
+					"name": "Parse"
+				},
+				{
+					"name": "Flatten"
+				},
+				{
+					"name": "SelectAggregationsOnly"
+				},
+				{
+					"name": "FlattenKeyViews"
+				},
+				{
+					"name": "SetColumnNames"
+				},
+				{
+					"name": "AggregationViews"
+				},
+				{
+					"name": "Export"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     id_column_name as string,",
+				"     count_column_name as string",
+				"}",
+				"input(output(",
+				"          Column_1 as string",
+				"     ),",
+				"     order: 0,",
+				"     allowSchemaDrift: true) ~> AggregationViews",
+				"Flatten parse(aggregations = aggregations ? (key as string,",
+				"          doc_count as long),",
+				"     format: 'json',",
+				"     documentForm: 'singleDocument') ~> ParseFlatten",
+				"AggregationViews derive(aggregations = split(replace(replace(replace(Column_1,'[',''),']',''),'},{','}|{'),'|')) ~> Parse",
+				"SelectAggregationsOnly foldDown(unroll(aggregations),",
+				"     mapColumn(",
+				"          aggregations",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> Flatten",
+				"Parse select(mapColumn(",
+				"          aggregations",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectAggregationsOnly",
+				"ParseFlatten derive(key = aggregations.key,",
+				"          count = aggregations.doc_count) ~> FlattenKeyViews",
+				"FlattenKeyViews select(mapColumn(",
+				"          each(match(name=='key'),",
+				"               $id_column_name = $$),",
+				"          each(match(name=='count'),",
+				"               $count_column_name = $$)",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SetColumnNames",
+				"SetColumnNames output() ~> Export"
+			]
+		}
+	}
+}

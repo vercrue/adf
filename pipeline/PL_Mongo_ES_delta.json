@@ -1,0 +1,315 @@
+{
+	"name": "PL_Mongo_ES_delta",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy user events to JSON",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Set last event date",
+						"dependencyConditions": [
+							"Succeeded",
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "CosmosDbMongoDbApiSource",
+						"batchSize": 100,
+						"filter": {
+							"value": "{event_date: {\n$gt: ISODate(\"@{variables('last_event_date')}\")\n}}",
+							"type": "Expression"
+						}
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['_id']['$oid']"
+								},
+								"sink": {
+									"path": "id"
+								}
+							},
+							{
+								"source": {
+									"path": "$['user_id']"
+								},
+								"sink": {
+									"path": "user_id"
+								}
+							},
+							{
+								"source": {
+									"path": "$['event_date']['$date']"
+								},
+								"sink": {
+									"path": "event_date"
+								}
+							},
+							{
+								"source": {
+									"path": "$['event_type']"
+								},
+								"sink": {
+									"path": "event_type"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ressource_id']"
+								},
+								"sink": {
+									"path": "ressource_id"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ressource_type']"
+								},
+								"sink": {
+									"path": "ressource_type"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_Cosmos_back_user_events",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "user_events.json"
+						}
+					}
+				]
+			},
+			{
+				"name": "Transform user events",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "Copy user events to JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "1.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "DF_Transform_user_events",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"MongoUserEvents": {
+								"file_name": "user_events.json"
+							},
+							"Export": {
+								"file_name": "user_events_clean.json"
+							}
+						}
+					},
+					"integrationRuntime": {
+						"referenceName": "MVNIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "Read user events clean",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Transform user events",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "user_events_clean.json"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Get last event date",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index}/_search",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "IR-dmp-aks",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"body": {
+						"size": 1,
+						"sort": {
+							"event_date": "desc"
+						}
+					},
+					"disableCertValidation": true,
+					"authentication": {
+						"type": "Basic",
+						"username": "sa_datafactory",
+						"password": {
+							"type": "AzureKeyVaultSecret",
+							"store": {
+								"referenceName": "LS_KeyVault",
+								"type": "LinkedServiceReference"
+							},
+							"secretName": "ElasticsearchSADatafactoryPassword"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set last event date",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get last event date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "last_event_date",
+					"value": {
+						"value": "@{activity('Get last event date').output.hits.hits[0]._source.event_date}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Load to ES",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Read user events clean",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_Load_to_Elasticsearch",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"data": {
+							"value": "@activity('Read user events clean').output.value",
+							"type": "Expression"
+						},
+						"index": {
+							"value": "@pipeline().parameters.index",
+							"type": "Expression"
+						},
+						"id_key": {
+							"value": "@variables('id_key')",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index": {
+				"type": "string",
+				"defaultValue": "idx_user_events2"
+			}
+		},
+		"variables": {
+			"last_event_date": {
+				"type": "String",
+				"defaultValue": "2020-01-01T00:00:00Z"
+			},
+			"id_key": {
+				"type": "String",
+				"defaultValue": "id"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Mongo_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-09-21T12:46:28Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

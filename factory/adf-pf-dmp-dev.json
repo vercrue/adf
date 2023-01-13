@@ -1,0 +1,17 @@
+{
+	"name": "adf-pf-dmp-dev",
+	"properties": {
+		"globalParameters": {
+			"Elasticsearch_URL": {
+				"type": "string",
+				"value": "https://elasticsearch.dmp-dev.fr.pierre-fabre.lcl"
+			}
+		}
+	},
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "3d7747a3-da13-40b1-ab6b-a8f363012704",
+		"tenantId": "a899d509-e790-454b-b3fe-4b581016bdc5"
+	}
+}

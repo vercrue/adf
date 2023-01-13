@@ -1,0 +1,10 @@
+{
+	"name": "PE_Cosmos_back",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/6e48fce0-a84a-4f65-b020-7c16e5a28768/resourceGroups/rg-pf-dmp-dev/providers/Microsoft.DocumentDb/databaseAccounts/cosmos-pfg-dmp-d-back",
+		"groupId": "MongoDB",
+		"fqdns": [
+			"cosmos-pfg-dmp-d-back.mongo.cosmos.azure.com"
+		]
+	}
+}

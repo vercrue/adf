@@ -1,0 +1,24 @@
+{
+	"name": "LS_Cosmos_back",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "CosmosDbMongoDbApi",
+		"typeProperties": {
+			"connectionString": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "LS_KeyVault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "CosmosBackConnectionString"
+			},
+			"database": "dmp-portal",
+			"isServerVersionAbove32": true
+		},
+		"connectVia": {
+			"referenceName": "MVNIntegrationRuntime",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

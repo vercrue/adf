@@ -1,0 +1,19 @@
+{
+	"name": "DS_Cosmos_back_support_requests",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_Cosmos_back",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Pipelines_portail/Mongo"
+		},
+		"annotations": [],
+		"type": "CosmosDbMongoDbApiCollection",
+		"schema": [],
+		"typeProperties": {
+			"collection": "support_request"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

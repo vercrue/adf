@@ -1,0 +1,19 @@
+{
+	"name": "DS_Cosmos_back_user_events",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_Cosmos_back",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Pipelines_portail/Mongo"
+		},
+		"annotations": [],
+		"type": "CosmosDbMongoDbApiCollection",
+		"schema": [],
+		"typeProperties": {
+			"collection": "user_events"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

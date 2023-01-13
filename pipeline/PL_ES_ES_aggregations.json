@@ -1,0 +1,327 @@
+{
+	"name": "PL_ES_ES_aggregations",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get aggregations",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index_user_events}/_search",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "IR-dmp-aks",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"body": {
+						"value": "{\"size\":0,\n\"query\":{\n    \"bool\":{\n        \"must\":[{\n            \"match\":{\n                \"ressource_type\":\"@{pipeline().parameters.resource_type}\"\n                }\n            },{\n            \"match\":{\n                \"event_type\":\"@{pipeline().parameters.event_type}\"\n                }\n            }\n        ]\n    }\n},\n\"aggs\":{\n    \"number_views\":{\n        \"terms\":{\n            \"field\":\"ressource_id.keyword\"\n            }\n        }\n    }\n}",
+						"type": "Expression"
+					},
+					"disableCertValidation": true,
+					"authentication": {
+						"type": "Basic",
+						"username": "sa_datafactory",
+						"password": {
+							"type": "AzureKeyVaultSecret",
+							"store": {
+								"referenceName": "LS_KeyVault",
+								"type": "LinkedServiceReference"
+							},
+							"secretName": "ElasticsearchSADatafactoryPassword"
+						}
+					}
+				}
+			},
+			{
+				"name": "If there are aggregations",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Get aggregations",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(length(activity('Get aggregations').output.aggregations.number_views.buckets),0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Copy aggregations",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "json",
+											"value": {
+												"value": "@string(activity('Get aggregations').output.aggregations.number_views.buckets)",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "json",
+												"type": "String"
+											},
+											"sink": {
+												"name": "json"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_CSV_ES_aggr_dummy",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": {
+											"value": "@{pipeline().parameters.output_file_name}.csv",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Extract aggregations",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [
+								{
+									"activity": "Copy aggregations",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "1.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "DF_Transform_aggregations",
+									"type": "DataFlowReference",
+									"parameters": {
+										"id_key": {
+											"value": "'@{pipeline().parameters.id_key}'",
+											"type": "Expression"
+										},
+										"count_name": {
+											"value": "'@{pipeline().parameters.count_name}'",
+											"type": "Expression"
+										},
+										"output_file_name": {
+											"value": "'@{pipeline().parameters.output_file_name}.json'",
+											"type": "Expression"
+										}
+									},
+									"datasetParameters": {
+										"ReadAggregations": {
+											"file_name": {
+												"value": "@{pipeline().parameters.output_file_name}.csv",
+												"type": "Expression"
+											}
+										},
+										"Export": {
+											"file_name": {
+												"value": "@{pipeline().parameters.output_file_name}.json",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								"integrationRuntime": {
+									"referenceName": "MVNIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"traceLevel": "Fine"
+							}
+						},
+						{
+							"name": "Read aggregations",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Extract aggregations",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DS_JSON_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": {
+											"value": "@{pipeline().parameters.output_file_name}.json",
+											"type": "Expression"
+										}
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Load to ES",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read aggregations",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Load_to_Elasticsearch",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"data": {
+										"value": "@activity('Read aggregations').output.value",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index_target",
+										"type": "Expression"
+									},
+									"id_key": {
+										"value": "@pipeline().parameters.id_key",
+										"type": "Expression"
+									},
+									"op_type": "update"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"index_user_events": {
+				"type": "string",
+				"defaultValue": "idx_user_events2"
+			},
+			"index_target": {
+				"type": "string",
+				"defaultValue": "idx_datasets2"
+			},
+			"id_key": {
+				"type": "string",
+				"defaultValue": "dataset_id"
+			},
+			"resource_type": {
+				"type": "string",
+				"defaultValue": "dataset"
+			},
+			"event_type": {
+				"type": "string",
+				"defaultValue": "explore_view"
+			},
+			"count_name": {
+				"type": "string",
+				"defaultValue": "explores"
+			},
+			"output_file_name": {
+				"type": "string",
+				"defaultValue": "aggregations_datasets_explores"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/ES_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-04T10:47:40Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

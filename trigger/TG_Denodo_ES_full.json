@@ -1,0 +1,48 @@
+{
+	"name": "TG_Denodo_ES_full",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_Denodo_ES_datasets_full",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index": "idx_datasets",
+					"index_user_events": "idx_user_events",
+					"index_dictionary": "idx_dictionary"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_Denodo_ES_reports_full",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index": "idx_reports",
+					"index_user_events": "idx_user_events",
+					"index_dictionary": "idx_dictionary"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2022-08-19T12:09:00",
+				"timeZone": "Romance Standard Time",
+				"schedule": {
+					"minutes": [
+						0
+					],
+					"hours": [
+						5
+					]
+				}
+			}
+		}
+	}
+}

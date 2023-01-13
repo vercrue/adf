@@ -1,0 +1,30 @@
+{
+	"name": "DS_CSV_ES_aggr_dummy",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_STRUCTURED",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Pipelines_portail/ES"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "aggregations_dummy.csv",
+				"fileSystem": "pipelines"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

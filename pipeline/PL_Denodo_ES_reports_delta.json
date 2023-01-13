@@ -1,0 +1,638 @@
+{
+	"name": "PL_Denodo_ES_reports_delta",
+	"properties": {
+		"activities": [
+			{
+				"name": "Count reports",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Set last index date",
+						"dependencyConditions": [
+							"Succeeded",
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"query": {
+							"value": "SELECT COUNT(*) \nFROM search.i_tableau_report\nWHERE report_creation_date > '@{variables('last_index_date')}' \nOR report_update_date > '@{variables('last_index_date')}'",
+							"type": "Expression"
+						},
+						"queryTimeout": "00:03:00"
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "count",
+									"type": "Int64"
+								},
+								"sink": {
+									"path": "$['count']"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_ODBC_Denodo",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "reports_count.json"
+						}
+					}
+				]
+			},
+			{
+				"name": "If count greater 0",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Read count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('Read count').output.firstRow.count, 0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Copy reports to CSV",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"query": {
+										"value": "SELECT * FROM search.i_tableau_report\nLEFT JOIN (\nSELECT \"Samaccountname\", \"Surname\", \"GivenName\", \"EmailAddress\" \nFROM \"si_transverse\".\"i_staff_with_device\") \nON report_owner_name = \"Samaccountname\" \nWHERE report_creation_date > '@{variables('last_index_date')}' \nOR report_update_date > '@{variables('last_index_date')}' ",
+										"type": "Expression"
+									},
+									"queryTimeout": "00:20:00"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"validateDataConsistency": true,
+								"logSettings": {
+									"enableCopyActivityLog": true,
+									"copyActivityLogSettings": {
+										"logLevel": "Warning",
+										"enableReliableLogging": false
+									},
+									"logLocationSettings": {
+										"linkedServiceName": {
+											"referenceName": "LS_ADLS_STRUCTURED",
+											"type": "LinkedServiceReference"
+										},
+										"path": "pipelines/logs"
+									}
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "site_name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "site_name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_id",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_id",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_title",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_title",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_description",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_description",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_url",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_url",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_creation_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_creation_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_update_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_update_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_project_tableau_server",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_project_tableau_server",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_owner_name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_owner_name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_tags",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_tags",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_preview_image_url",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_preview_image_url",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "report_list_views",
+												"type": "String"
+											},
+											"sink": {
+												"name": "report_list_views",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "list_years_param",
+												"type": "String"
+											},
+											"sink": {
+												"name": "list_years_param",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "site_name_param",
+												"type": "String"
+											},
+											"sink": {
+												"name": "site_name_param",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "keyword_param",
+												"type": "String"
+											},
+											"sink": {
+												"name": "keyword_param",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Samaccountname",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Samaccountname",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Surname",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Surname",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "GivenName",
+												"type": "String"
+											},
+											"sink": {
+												"name": "GivenName",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "EmailAddress",
+												"type": "String"
+											},
+											"sink": {
+												"name": "EmailAddress",
+												"type": "String",
+												"physicalType": "String"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ODBC_Denodo",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "reports.csv"
+									}
+								}
+							]
+						},
+						{
+							"name": "Transform reports",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [
+								{
+									"activity": "Copy reports to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "1.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "DF_Transform_reports",
+									"type": "DataFlowReference",
+									"datasetParameters": {
+										"DenodoReports": {
+											"file_name": "reports.csv"
+										},
+										"Export": {
+											"file_name": "reports_clean.json"
+										}
+									}
+								},
+								"integrationRuntime": {
+									"referenceName": "MVNIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"traceLevel": "Fine"
+							}
+						},
+						{
+							"name": "Read reports clean",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Transform reports",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DS_JSON_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "reports_clean.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Load to ES",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read reports clean",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Load_to_Elasticsearch",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"data": {
+										"value": "@activity('Read reports clean').output.value",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									},
+									"id_key": {
+										"value": "@variables('id_key')",
+										"type": "Expression"
+									},
+									"terms_field": {
+										"value": "@variables('terms_field')",
+										"type": "Expression"
+									},
+									"index_dictionary": {
+										"value": "@pipeline().parameters.index_dictionary",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Read count",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Count reports",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "reports_count.json"
+						}
+					}
+				}
+			},
+			{
+				"name": "Get last index date",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index}/_search",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "IR-dmp-aks",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"body": {
+						"size": 1,
+						"sort": {
+							"indexed_date": "desc"
+						}
+					},
+					"disableCertValidation": true,
+					"authentication": {
+						"type": "Basic",
+						"username": "sa_datafactory",
+						"password": {
+							"type": "AzureKeyVaultSecret",
+							"store": {
+								"referenceName": "LS_KeyVault",
+								"type": "LinkedServiceReference"
+							},
+							"secretName": "ElasticsearchSADatafactoryPassword"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set last index date",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get last index date",
+						"dependencyConditions": [
+							"Succeeded",
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "last_index_date",
+					"value": {
+						"value": "@{activity('Get last index date').output.hits.hits[0]._source.indexed_date}",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index": {
+				"type": "string",
+				"defaultValue": "idx_reports2"
+			},
+			"index_dictionary": {
+				"type": "string",
+				"defaultValue": "idx_dictionary2"
+			}
+		},
+		"variables": {
+			"last_index_date": {
+				"type": "String",
+				"defaultValue": "2020-01-01T00:00:00Z"
+			},
+			"id_key": {
+				"type": "String",
+				"defaultValue": "report_id"
+			},
+			"terms_field": {
+				"type": "String",
+				"defaultValue": "report_tags"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-10-07T09:49:50Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

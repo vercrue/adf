@@ -1,0 +1,23 @@
+{
+	"name": "LS_ADLS_STRUCTURED",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://stszpfgdmpdstructervelag.dfs.core.windows.net/",
+			"accountKey": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "LS_KeyVault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "BlobStorageAccountKey"
+			}
+		},
+		"connectVia": {
+			"referenceName": "MVNIntegrationRuntime",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

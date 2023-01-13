@@ -1,0 +1,88 @@
+{
+	"name": "PL_Delete_ES_index",
+	"properties": {
+		"activities": [
+			{
+				"name": "If count greater 0",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(pipeline().parameters.count, 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Read count is not greater than 0",
+								"errorCode": "500"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Delete index data",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:05:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": {
+									"value": "@{pipeline().globalParameters.Elasticsearch_URL}/@{pipeline().parameters.index}/_delete_by_query",
+									"type": "Expression"
+								},
+								"connectVia": {
+									"referenceName": "IR-dmp-aks",
+									"type": "IntegrationRuntimeReference"
+								},
+								"method": "POST",
+								"body": {
+									"value": "{\"query\": {\"match_all\": {} }}",
+									"type": "Expression"
+								},
+								"disableCertValidation": true,
+								"authentication": {
+									"type": "Basic",
+									"username": "sa_datafactory",
+									"password": {
+										"type": "AzureKeyVaultSecret",
+										"store": {
+											"referenceName": "LS_KeyVault",
+											"type": "LinkedServiceReference"
+										},
+										"secretName": "ElasticsearchSADatafactoryPassword"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"count": {
+				"type": "int"
+			},
+			"index": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-10-07T09:47:00Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

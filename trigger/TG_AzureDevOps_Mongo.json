@@ -1,0 +1,24 @@
+{
+	"name": "TG_AzureDevOps_Mongo",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_AzureDevOps_Mongo",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Hour",
+				"interval": 1,
+				"startTime": "2022-12-20T12:00:00Z",
+				"timeZone": "UTC"
+			}
+		}
+	}
+}

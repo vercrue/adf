@@ -1,0 +1,169 @@
+{
+	"name": "DF_Transform_datasets",
+	"properties": {
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_CSV_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "DenodoDatasets"
+				},
+				{
+					"dataset": {
+						"referenceName": "DS_CSV_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "DenodoFields"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "Export"
+				}
+			],
+			"transformations": [
+				{
+					"name": "SelectColumns"
+				},
+				{
+					"name": "MutateColumns"
+				},
+				{
+					"name": "CollapseFields"
+				},
+				{
+					"name": "JoinFields"
+				},
+				{
+					"name": "AddNumberColumns"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          objet as string,",
+				"          id as short,",
+				"          name as string,",
+				"          databasename as string,",
+				"          description as string,",
+				"          tags as string,",
+				"          categories as string,",
+				"          person_in_charge_of as string,",
+				"          provider as string,",
+				"          display_name as string,",
+				"          limits_constraits_and_risks as string,",
+				"          depth_and_history as string,",
+				"          quality as string,",
+				"          origin as string,",
+				"          confidentiality as string,",
+				"          status_publication as string,",
+				"          gdrp as string,",
+				"          frequency as string,",
+				"          quality_comments as string,",
+				"          publication_date as string,",
+				"          role_granted as string,",
+				"          user_creator as string,",
+				"          create_date as string,",
+				"          last_user_modifier as string,",
+				"          last_modification_date as string,",
+				"          last_updated_date as string,",
+				"          format_create_date as string,",
+				"          format_last_modification_date as string,",
+				"          format_last_updated_date as string,",
+				"          format_publication_date as string,",
+				"          role_list as string,",
+				"          Samaccountname as string,",
+				"          Surname as string,",
+				"          GivenName as string,",
+				"          EmailAddress as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     multiLineRow: true) ~> DenodoDatasets",
+				"source(output(",
+				"          id as short,",
+				"          name as string,",
+				"          databasename as string,",
+				"          field_name as string,",
+				"          type as string,",
+				"          field_description as string,",
+				"          mandatory as boolean,",
+				"          dataset_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     multiLineRow: true) ~> DenodoFields",
+				"MutateColumns select(mapColumn(",
+				"          dataset_id,",
+				"          id,",
+				"          name,",
+				"          databasename,",
+				"          description,",
+				"          tags,",
+				"          categories,",
+				"          person_in_charge_of,",
+				"          provider,",
+				"          display_name,",
+				"          limits_constraits_and_risks,",
+				"          depth_and_history,",
+				"          quality,",
+				"          origin,",
+				"          confidentiality,",
+				"          gdrp,",
+				"          frequency,",
+				"          quality_comments,",
+				"          user_creator,",
+				"          last_user_modifier,",
+				"          publication_date = format_publication_date,",
+				"          creation_date = format_create_date,",
+				"          last_modification_date = format_last_modification_date,",
+				"          last_updated_date = format_last_updated_date,",
+				"          role_granted = role_list,",
+				"          owner,",
+				"          {@data_origin},",
+				"          indexed_date",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectColumns",
+				"DenodoDatasets derive(dataset_id = concat(databasename, '@', name),",
+				"          {@data_origin} = 'Denodo',",
+				"          tags = split(tags,'|'),",
+				"          categories = split(categories,'|'),",
+				"          role_list = split(role_list,','),",
+				"          indexed_date = toString(currentUTC(), \"yyyy-MM-dd'T'HH:mm:ss'Z'\"),",
+				"          owner = associate('login', Samaccountname, 'surname', Surname, 'givenname', GivenName, 'email', EmailAddress)) ~> MutateColumns",
+				"DenodoFields aggregate(groupBy(dataset_id),",
+				"     fields = collect(@(name = field_name, description = field_description, type = type, mandatory = mandatory))) ~> CollapseFields",
+				"SelectColumns, CollapseFields join(SelectColumns@dataset_id == CollapseFields@dataset_id,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> JoinFields",
+				"JoinFields derive(number_columns = size(fields)) ~> AddNumberColumns",
+				"AddNumberColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          count as integer",
+				"     ),",
+				"     partitionFileNames:['datasets_clean.json'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> Export"
+			]
+		}
+	}
+}

@@ -1,0 +1,97 @@
+{
+	"name": "TG_ES_ES",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_datasets_explores",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_datasets"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_datasets_popularity",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_datasets"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_datasets_views",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_datasets"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_reports_opens",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_reports"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_reports_popularity",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_reports"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_reports_views",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_target": "idx_reports"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_Denodo_ES_datasets_nb_lines",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_datasets": "idx_datasets"
+				}
+			},
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ES_ES_datasets_exports",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"index_user_events": "idx_user_events",
+					"index_datasets": "idx_datasets"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2022-08-26T13:10:00",
+				"timeZone": "Romance Standard Time"
+			}
+		}
+	}
+}

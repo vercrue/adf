@@ -1,0 +1,1093 @@
+{
+	"name": "PL_Denodo_ES_datasets_full",
+	"properties": {
+		"activities": [
+			{
+				"name": "Count datasets",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"query": "SELECT COUNT(*) \nFROM search.i_all_metadata_datasets \nWHERE status_publication = 'Yes'",
+						"queryTimeout": "00:03:00"
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "count",
+									"type": "Int64"
+								},
+								"sink": {
+									"path": "$['count']"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_ODBC_Denodo",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "datasets_count.json"
+						}
+					}
+				]
+			},
+			{
+				"name": "If count greater 0",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Read count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('Read count').output.firstRow.count, 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "No datasets found",
+								"errorCode": "404"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Read datasets clean",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Transform datasets",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DS_JSON_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "datasets_clean.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Add views",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Load to ES",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_ES_ES_datasets_views",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"index_user_events": {
+										"value": "@pipeline().parameters.index_user_events",
+										"type": "Expression"
+									},
+									"index_target": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Add popularity",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Load to ES",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_ES_ES_datasets_popularity",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"index_user_events": {
+										"value": "@pipeline().parameters.index_user_events",
+										"type": "Expression"
+									},
+									"index_target": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Add explores",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Load to ES",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_ES_ES_datasets_explores",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"index_user_events": {
+										"value": "@pipeline().parameters.index_user_events",
+										"type": "Expression"
+									},
+									"index_target": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Copy datasets to CSV",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"query": "SELECT * FROM (\nSELECT *, CONCAT(databasename,'.',name) AS objet, FORMATDATE('yyyy-MM-dd''T''HH:mm:ssXXX', \"create_date\") as format_create_date, FORMATDATE('yyyy-MM-dd''T''HH:mm:ssXXX', \"last_modification_date\") as format_last_modification_date, FORMATDATE('yyyy-MM-dd''T''HH:mm:ssXXX', \"last_updated_date\") as format_last_updated_date, FORMATDATE('yyyy-MM-dd''T''HH:mm:ssXXX', \"publication_date\") as format_publication_date \nFROM search.i_all_metadata_datasets WHERE status_publication = 'Yes'\n) LEFT JOIN tools.i_objet_roles USING (objet) LEFT JOIN (\nSELECT \"Samaccountname\", \"Surname\", \"GivenName\", \"EmailAddress\" FROM \"si_transverse\".\"i_staff_with_device\") \nON person_in_charge_of = \"Samaccountname\"",
+									"queryTimeout": "00:20:00"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"validateDataConsistency": true,
+								"logSettings": {
+									"enableCopyActivityLog": true,
+									"copyActivityLogSettings": {
+										"logLevel": "Warning",
+										"enableReliableLogging": false
+									},
+									"logLocationSettings": {
+										"linkedServiceName": {
+											"referenceName": "LS_ADLS_STRUCTURED",
+											"type": "LinkedServiceReference"
+										},
+										"path": "pipelines/logs"
+									}
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "objet",
+												"type": "String"
+											},
+											"sink": {
+												"name": "objet",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "id",
+												"type": "Int32"
+											},
+											"sink": {
+												"name": "id",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "databasename",
+												"type": "String"
+											},
+											"sink": {
+												"name": "databasename",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "description",
+												"type": "String"
+											},
+											"sink": {
+												"name": "description",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "tags",
+												"type": "String"
+											},
+											"sink": {
+												"name": "tags",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "categories",
+												"type": "String"
+											},
+											"sink": {
+												"name": "categories",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "person_in_charge_of",
+												"type": "String"
+											},
+											"sink": {
+												"name": "person_in_charge_of",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "provider",
+												"type": "String"
+											},
+											"sink": {
+												"name": "provider",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "display_name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "display_name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "limits_constraits_and_risks",
+												"type": "String"
+											},
+											"sink": {
+												"name": "limits_constraits_and_risks",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "depth_and_history",
+												"type": "String"
+											},
+											"sink": {
+												"name": "depth_and_history",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "quality",
+												"type": "String"
+											},
+											"sink": {
+												"name": "quality",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "origin",
+												"type": "String"
+											},
+											"sink": {
+												"name": "origin",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "confidentiality",
+												"type": "String"
+											},
+											"sink": {
+												"name": "confidentiality",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "status_publication",
+												"type": "String"
+											},
+											"sink": {
+												"name": "status_publication",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "gdrp",
+												"type": "String"
+											},
+											"sink": {
+												"name": "gdrp",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "frequency",
+												"type": "String"
+											},
+											"sink": {
+												"name": "frequency",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "quality_comments",
+												"type": "String"
+											},
+											"sink": {
+												"name": "quality_comments",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "publication_date",
+												"type": "DateTime"
+											},
+											"sink": {
+												"name": "publication_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "role_granted",
+												"type": "String"
+											},
+											"sink": {
+												"name": "role_granted",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "user_creator",
+												"type": "String"
+											},
+											"sink": {
+												"name": "user_creator",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "create_date",
+												"type": "DateTime"
+											},
+											"sink": {
+												"name": "create_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "last_user_modifier",
+												"type": "String"
+											},
+											"sink": {
+												"name": "last_user_modifier",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "last_modification_date",
+												"type": "DateTime"
+											},
+											"sink": {
+												"name": "last_modification_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "last_updated_date",
+												"type": "DateTime"
+											},
+											"sink": {
+												"name": "last_updated_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "format_create_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "format_create_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "format_last_modification_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "format_last_modification_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "format_last_updated_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "format_last_updated_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "format_publication_date",
+												"type": "String"
+											},
+											"sink": {
+												"name": "format_publication_date",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "role_list",
+												"type": "String"
+											},
+											"sink": {
+												"name": "role_list",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Samaccountname",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Samaccountname",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "Surname",
+												"type": "String"
+											},
+											"sink": {
+												"name": "Surname",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "GivenName",
+												"type": "String"
+											},
+											"sink": {
+												"name": "GivenName",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "EmailAddress",
+												"type": "String"
+											},
+											"sink": {
+												"name": "EmailAddress",
+												"type": "String",
+												"physicalType": "String"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": false,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ODBC_Denodo",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "datasets.csv"
+									}
+								}
+							]
+						},
+						{
+							"name": "Transform datasets",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [
+								{
+									"activity": "Copy datasets to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Copy fields to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "1.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "DF_Transform_datasets",
+									"type": "DataFlowReference",
+									"datasetParameters": {
+										"DenodoDatasets": {
+											"file_name": "datasets.csv"
+										},
+										"DenodoFields": {
+											"file_name": "fields.csv"
+										},
+										"Export": {
+											"file_name": "datasets_clean.json"
+										}
+									}
+								},
+								"integrationRuntime": {
+									"referenceName": "MVNIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"traceLevel": "Fine"
+							}
+						},
+						{
+							"name": "Copy fields to CSV",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"query": "SELECT *, CONCAT(databasename,'@',name) AS dataset_id \r\nFROM search.i_element_fields",
+									"queryTimeout": "00:20:00"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"validateDataConsistency": true,
+								"logSettings": {
+									"enableCopyActivityLog": true,
+									"copyActivityLogSettings": {
+										"logLevel": "Warning",
+										"enableReliableLogging": false
+									},
+									"logLocationSettings": {
+										"linkedServiceName": {
+											"referenceName": "LS_ADLS_STRUCTURED",
+											"type": "LinkedServiceReference"
+										},
+										"path": "pipelines/logs"
+									}
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "id",
+												"type": "Int32"
+											},
+											"sink": {
+												"name": "id",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "databasename",
+												"type": "String"
+											},
+											"sink": {
+												"name": "databasename",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "field_name",
+												"type": "String"
+											},
+											"sink": {
+												"name": "field_name",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "type",
+												"type": "String"
+											},
+											"sink": {
+												"name": "type",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "field_description",
+												"type": "String"
+											},
+											"sink": {
+												"name": "field_description",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "mandatory",
+												"type": "String"
+											},
+											"sink": {
+												"name": "mandatory",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "dataset_id",
+												"type": "String"
+											},
+											"sink": {
+												"name": "dataset_id",
+												"type": "String",
+												"physicalType": "String"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": false,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ODBC_Denodo",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_CSV_pipelines",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name": "fields.csv"
+									}
+								}
+							]
+						},
+						{
+							"name": "Load to ES",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Delete index data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Load_to_Elasticsearch",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"data": {
+										"value": "@activity('Read datasets clean').output.value",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									},
+									"id_key": {
+										"value": "@variables('id_key')",
+										"type": "Expression"
+									},
+									"terms_field": {
+										"value": "@variables('terms_field')",
+										"type": "Expression"
+									},
+									"index_dictionary": {
+										"value": "@pipeline().parameters.index_dictionary",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Add number lines",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Load to ES",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Denodo_ES_datasets_nb_lines",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"index_datasets": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Delete index data",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read datasets clean",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Delete_ES_index",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"count": {
+										"value": "@activity('Read datasets clean').output.count",
+										"type": "Expression"
+									},
+									"index": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Add exports",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Load to ES",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_ES_ES_datasets_exports",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"index_user_events": {
+										"value": "@pipeline().parameters.index_user_events",
+										"type": "Expression"
+									},
+									"index_datasets": {
+										"value": "@pipeline().parameters.index",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Read count",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Count datasets",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": "datasets_count.json"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"index": {
+				"type": "string",
+				"defaultValue": "idx_datasets2"
+			},
+			"index_user_events": {
+				"type": "string",
+				"defaultValue": "idx_user_events2"
+			},
+			"index_dictionary": {
+				"type": "string",
+				"defaultValue": "idx_dictionary2"
+			}
+		},
+		"variables": {
+			"id_key": {
+				"type": "String",
+				"defaultValue": "dataset_id"
+			},
+			"terms_field": {
+				"type": "String",
+				"defaultValue": "categories"
+			}
+		},
+		"folder": {
+			"name": "Pipelines_portail/Denodo_ES_pipelines"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-12-01T16:29:46Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

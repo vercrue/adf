@@ -1,0 +1,61 @@
+{
+	"name": "DF_Transform_user_events",
+	"properties": {
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "MongoUserEvents"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "Export"
+				}
+			],
+			"transformations": [
+				{
+					"name": "MutateColumns"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          event_date as long,",
+				"          event_type as string,",
+				"          id as string,",
+				"          ressource_id as string,",
+				"          ressource_type as string,",
+				"          user_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     documentForm: 'documentPerLine') ~> MongoUserEvents",
+				"MongoUserEvents derive(event_date = toString(toTimestamp(event_date), 'yyyy-MM-dd\\'T\\'HH:mm:ss\\'Z\\'')) ~> MutateColumns",
+				"MutateColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          count as integer",
+				"     ),",
+				"     partitionFileNames:['user_events_clean.json'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> Export"
+			]
+		}
+	}
+}

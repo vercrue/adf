@@ -1,0 +1,97 @@
+{
+	"name": "DF_Transform_reports",
+	"properties": {
+		"folder": {
+			"name": "Pipelines_portail"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_CSV_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "DenodoReports"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_JSON_pipelines",
+						"type": "DatasetReference"
+					},
+					"name": "Export"
+				}
+			],
+			"transformations": [
+				{
+					"name": "MutateColumns"
+				},
+				{
+					"name": "RemoveUnusedColumns"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          site_name as string,",
+				"          report_id as string,",
+				"          report_title as string,",
+				"          report_description as string,",
+				"          report_url as string,",
+				"          report_creation_date as string,",
+				"          report_update_date as string,",
+				"          report_project_tableau_server as string,",
+				"          report_owner_name as string,",
+				"          report_tags as string,",
+				"          report_preview_image_url as string,",
+				"          report_list_views as string,",
+				"          list_years_param as string,",
+				"          site_name_param as string,",
+				"          keyword_param as string,",
+				"          Samaccountname as string,",
+				"          Surname as string,",
+				"          GivenName as string,",
+				"          EmailAddress as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> DenodoReports",
+				"DenodoReports derive(report_tags = split(report_tags,'|'),",
+				"          report_list_views = split(report_list_views,';'),",
+				"          indexed_date = toString(currentUTC(), \"yyyy-MM-dd'T'HH:mm:ss'Z'\"),",
+				"          owner = associate('login', Samaccountname, 'surname', Surname, 'givenname', GivenName, 'email', EmailAddress)) ~> MutateColumns",
+				"MutateColumns select(mapColumn(",
+				"          site_name,",
+				"          report_id,",
+				"          report_title,",
+				"          report_description,",
+				"          report_url,",
+				"          report_creation_date,",
+				"          report_update_date,",
+				"          report_project_tableau_server,",
+				"          report_owner_name,",
+				"          report_tags,",
+				"          report_preview_image_url,",
+				"          report_list_views,",
+				"          indexed_date,",
+				"          owner",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RemoveUnusedColumns",
+				"RemoveUnusedColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          count as integer",
+				"     ),",
+				"     partitionFileNames:['reports_clean.json'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> Export"
+			]
+		}
+	}
+}
