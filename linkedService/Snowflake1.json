@@ -7,7 +7,7 @@
 		"typeProperties": {
 			"authenticationType": "Basic",
 			"connectionString": "jdbc:snowflake://kt95341.west-europe.privatelink.snowflakecomputing.com/?user=integrator_vercrue_sandbox&db=SANDBOX_VERCRUE_DATABASE&warehouse=sandbox_vw&role=sandbox_integrator",
-			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJkYjBlOGZhOS1kN2JiLTQ2MWMtYTE3YS0wYmQxZjE5MDIyYzYiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJlNmZmZDVjNC0xMTZkLTQwNTMtYWVhZC1iMjczNTUzODY5ZTciLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
 		},
 		"connectVia": {
 			"referenceName": "IR-dmp-aks",
