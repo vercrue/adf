@@ -6,8 +6,8 @@
 		"type": "Snowflake",
 		"typeProperties": {
 			"authenticationType": "Basic",
-			"connectionString": "jdbc:snowflake://kt95341.west-europe.privatelink.snowflakecomputing.com/?user=integrator_vercrue_sandbox&db=SANDBOX_VERCRUE_DATABASE&warehouse=sandbox_vx&role=sandbox_integrator",
-			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJjZDdkYTA1ZS04N2VlLTQzOWQtODM4MS04YTZlNDhjNDg2MDMiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+			"connectionString": "jdbc:snowflake://kt95341.west-europe.privatelink.snowflakecomputing.com/?user=integrator_vercrue_sandbox&db=SANDBOX_VERCRUE_DATABASE&warehouse=sandbox_vw&role=sandbox_integrator",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJkZDI4ZWUyNi1kNTdhLTQ5N2QtYTM0MS00NDQxYzRmY2Q0M2QiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
 		},
 		"connectVia": {
 			"referenceName": "IR-dmp-aks",
